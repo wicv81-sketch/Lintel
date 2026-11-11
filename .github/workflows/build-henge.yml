@@ -101,6 +101,21 @@ jobs:
         working-directory: Henge
         run: zsh ios/scripts/package_ipa.sh
 
+      # package_ipa.sh hides the full xcodebuild log. On failure, show which Xcode/SDK
+      # was used and the lines around each fatal error ("In file included from ...").
+      - name: Show build log on failure
+        if: failure()
+        run: |
+          xcodebuild -version || true
+          xcode-select -p || true
+          ls -d /Applications/Xcode*.app || true
+          LOG="$GITHUB_WORKSPACE/Henge/ios/build/DerivedData.buildlog"
+          if [ -f "$LOG" ]; then
+            grep -n -B25 -A3 "fatal error" "$LOG" | head -150
+          else
+            echo "no build log at $LOG"
+          fi
+
       - name: Upload Henge.ipa
         uses: actions/upload-artifact@v4
         with:
