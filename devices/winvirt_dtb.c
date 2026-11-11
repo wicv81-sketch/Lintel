@@ -5,7 +5,7 @@
 
 /* A minimal flattened device tree in QEMU `virt`'s shape. The UEFI firmware (EDK2 ArmVirtQemu) reads it from
    the start of RAM to find memory, CPUs, the GIC, the UART and PCIe, as far as I know. UNTESTED.
-   Left out until the devices exist: the fw-cfg node (EDK2 would probe it and fail), PCIe's I/O range and
+   Left out for now: PCIe's I/O range and
    64-bit window, and the PCIe interrupt-map (the firmware may want it; if it stops early, look here first). */
 
 typedef struct {
@@ -117,6 +117,13 @@ static size_t build(const HvWinvirt *b, uint8_t *out, size_t cap) {
     prop_str(&f, "compatible", "arm,armv8-timer");
     CELLS(&f, "interrupts", 1, 13, 4, 1, 14, 4, 1, 11, 4, 1, 10, 4); /* sec phys, phys, virt, hyp */
     prop_flag(&f, "always-on");
+    end(&f);
+
+    node_name(nm, sizeof nm, "fw-cfg", WINVIRT_FWCFG);
+    begin(&f, nm);
+    prop_str(&f, "compatible", "qemu,fw-cfg-mmio");
+    CELLS(&f, "reg", HI(WINVIRT_FWCFG), LO(WINVIRT_FWCFG), 0, 0x18);
+    prop_flag(&f, "dma-coherent");
     end(&f);
 
     node_name(nm, sizeof nm, "pl011", WINVIRT_UART);

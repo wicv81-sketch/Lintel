@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
+#include "fwcfg.h"
 #include "gicv3.h"
 #include "pcie.h"
 #include "pl011.h"
@@ -18,7 +19,7 @@
 #define WINVIRT_GIC_REDIST     0x080a0000ull
 #define WINVIRT_UART           0x09000000ull
 #define WINVIRT_RTC            0x09010000ull
-#define WINVIRT_FWCFG          0x09020000ull /* TODO: not written yet; EDK2's ArmVirt build needs it */
+#define WINVIRT_FWCFG          0x09020000ull /* devices/fwcfg.c; the ACPI files it should serve are still TODO */
 #define WINVIRT_PCIE_MMIO      0x10000000ull
 #define WINVIRT_PCIE_MMIO_SIZE 0x2eff0000ull
 #define WINVIRT_PCIE_ECAM      0x3f000000ull
@@ -38,6 +39,7 @@ typedef struct HvWinvirt {
     HvPl011 *uart;
     HvPl031 *rtc;
     HvPcie *pcie;
+    HvFwCfg *fwcfg;
     HvXhci *usb;   /* TODO: its HID devices are Apple's trackpad; Windows needs a plain keyboard and tablet */
     uint8_t *flash, *ram;
     uint64_t ram_size;

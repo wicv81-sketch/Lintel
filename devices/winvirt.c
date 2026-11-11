@@ -11,7 +11,7 @@
      gone:  boot ROM transport (bdif), config region, AES, Apple's paravirtual GPU, the RTC select window,
             the avp-ctrr and avp-sealed registers, the virtio USB installer port, the GIC MSI frame.
      kept:  GICv3, PL011, PL031, PCIe (INTx only), xHCI, the timer, PSCI over HVC.
-     TODO:  fw_cfg (+ ACPI tables), a device tree at WINVIRT_MEM, NVMe, a framebuffer, HID keyboard/tablet. */
+     TODO:  ACPI tables for fw_cfg (fw_cfg itself is in fwcfg.c), a device tree at WINVIRT_MEM, NVMe, a framebuffer, HID keyboard/tablet. */
 
 static uint64_t tick_locked(HvMachine *m, HvCpu *cpu) {
     HvWinvirt *b = m->tick_opaque;
@@ -52,7 +52,8 @@ int hv_winvirt_create(HvWinvirt *b, HvMachine *m, HvCpu *cpu, int ncpus, uint64_
     b->pcie = hv_pcie_create(m, b->gic, WINVIRT_PCIE_ECAM, WINVIRT_PCIE_ECAM_SIZE, WINVIRT_PCIE_MMIO,
                              WINVIRT_PCIE_MMIO_SIZE, 32 + WINVIRT_IRQ_PCIE);
     b->usb = hv_xhci_create(m, b->pcie);
-    if (!b->gic || !b->uart || !b->rtc || !b->pcie || !b->usb) return -1;
+    b->fwcfg = hv_fwcfg_create(m, WINVIRT_FWCFG, ram_size, b->ncpus);
+    if (!b->fwcfg || !b->gic || !b->uart || !b->rtc || !b->pcie || !b->usb) return -1;
 
     m->tick = tick;
     m->tick_opaque = b;
@@ -83,6 +84,7 @@ void hv_winvirt_reset_cpu(HvWinvirt *b) {
 void hv_winvirt_destroy(HvWinvirt *b) {
     if (b->usb) { pthread_mutex_destroy(&b->usb->mu); free(b->usb); }
     if (b->gic) { pthread_mutex_destroy(&b->gic->mu); free(b->gic); }
+    hv_fwcfg_destroy(b->fwcfg);
     free(b->pcie);
     free(b->uart);
     free(b->rtc);

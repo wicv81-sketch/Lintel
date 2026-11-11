@@ -6,6 +6,7 @@
 
 #include "disk.h"
 #include "vmapple.h"
+#include "winvirt.h"
 
 /* The virtual Mac as a host app drives it: build it from files, run it, feed
    it input, stop it. The macOS command-line tool and the iOS app both use this;
@@ -20,6 +21,10 @@ typedef struct HvVmConfig {
     int log;                  /* m->log */
     int no_net, no_sound;
     int installer;            /* boot the ROM in DFU mode with the USB device port (installing macOS) */
+    /* Windows board (devices/winvirt.c): set firmware to a UEFI image (EDK2 ArmVirtQemu) and no ROM, disk or aux
+       are needed yet. UNTESTED, and the machine has no disk, display or input until NVMe, a framebuffer and a
+       USB keyboard exist: it only boots the firmware to the serial port (stdout). */
+    const char *firmware;
     /* JIT memory the host already has (iOS: granted by a debugger), or NULL to map it here. */
     void *jit_rx, *jit_rw;
     size_t jit_bytes;         /* 0: 768 MB */

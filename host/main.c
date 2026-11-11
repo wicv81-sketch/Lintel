@@ -1063,6 +1063,7 @@ static void install_progress(int step, double p, void *user) {
 }
 
 int main(int argc, char **argv) {
+    const char *firmware = NULL;
     const char *rom = NULL, *disk_path = NULL, *aux_path = NULL;
     uint64_t seed = 0, ecid = 0, ram_mb = 4096, aux_offset = 16384;
     const char *install_ipsw = NULL, *resume_path = NULL;
@@ -1128,12 +1129,13 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--aux-offset")) aux_offset = strtoull(argv[++i], NULL, 0);
         else if (!strcmp(argv[i], "--install")) install_ipsw = argv[++i];
         else if (!strcmp(argv[i], "--resume")) resume_path = argv[++i];
+        else if (!strcmp(argv[i], "--firmware")) firmware = argv[++i]; /* the Windows board: a UEFI image, boots to the serial port */
         else usage();
     }
-    if (!rom || !disk_path || !aux_path) usage();
+    if (!firmware && (!rom || !disk_path || !aux_path)) usage();
     setvbuf(stderr, NULL, _IONBF, 0);
 
-    HvVmConfig vc = {.rom = rom, .disk = disk_path, .aux = aux_path, .aux_offset = aux_offset, .ecid = ecid, .seed = seed,
+    HvVmConfig vc = {.firmware = firmware, .rom = rom, .disk = disk_path, .aux = aux_path, .aux_offset = aux_offset, .ecid = ecid, .seed = seed,
                      .ram_mb = ram_mb, .ncpus = ncpus, .log = log, .no_net = getenv("HV_NO_NET") != NULL,
                      .installer = install_ipsw != NULL};
     if (getenv("HV_JIT_MB")) vc.jit_bytes = (size_t)atoi(getenv("HV_JIT_MB")) << 20; /* debugging: a small region flushes often */

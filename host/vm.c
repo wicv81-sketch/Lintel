@@ -28,6 +28,8 @@ static HvMachine m;
 static HvCpu cpus[HV_MAX_CPUS]; /* the board takes them as an array */
 static int ncpus = 1;
 static HvVmapple board = {.ram_fd = -1};
+static HvWinvirt winboard; /* the Windows board: used instead of `board` when the config names firmware */
+static int windows_mode;
 static _Atomic int input_stopping = 1;
 static void stop_pointer(void);
 /* UI display changes may arrive before or during the background machine creation. */
@@ -248,7 +250,8 @@ int hv_vm_create(const HvVmConfig *c, char *err, size_t errlen) {
         pthread_join(primary_thread, NULL);
         primary_started = 0;
     }
-    if (!c->rom || !c->disk || !c->aux) return fail(err, errlen, "The ROM, disk and auxiliary storage are all needed.");
+    int windows = c->firmware != NULL;
+    if (!windows && (!c->rom || !c->disk || !c->aux)) return fail(err, errlen, "The ROM, disk and auxiliary storage are all needed.");
     machine_created = 1;
     struct sigaction ill = {.sa_flags = SA_SIGINFO | SA_ONSTACK};
     ill.sa_sigaction = on_ill;
@@ -259,8 +262,8 @@ int hv_vm_create(const HvVmConfig *c, char *err, size_t errlen) {
         signals_installed = 1;
     }
     signal(SIGPIPE, SIG_IGN); /* a guest connection closing at the far end must not end the machine */
-    if (hv_disk_open(&disk, c->disk, 0, 0) != 0) return fail(err, errlen, "Cannot open the disk image.");
-    if (hv_disk_open(&aux, c->aux, c->aux_offset ? c->aux_offset : 16384, 0) != 0)
+    if (!windows && hv_disk_open(&disk, c->disk, 0, 0) != 0) return fail(err, errlen, "Cannot open the disk image.");
+    if (!windows && hv_disk_open(&aux, c->aux, c->aux_offset ? c->aux_offset : 16384, 0) != 0)
         return fail(err, errlen, "Cannot open the auxiliary storage.");
     size_t jit = c->jit_bytes ? c->jit_bytes : (size_t)768 << 20;
     int r = c->jit_rx ? hv_machine_init_jit(&m, c->jit_rx, c->jit_rw, jit) : hv_machine_init(&m, jit);
@@ -270,6 +273,19 @@ int hv_vm_create(const HvVmConfig *c, char *err, size_t errlen) {
     if (getenv("HV_SLOW_MEM")) m.slow_mem = 1; /* debugging: every load and store through the helper */
     ncpus = c->ncpus < 1 ? 1 : c->ncpus > HV_MAX_CPUS ? HV_MAX_CPUS : c->ncpus;
     m.big_lock_on = ncpus > 1 && getenv("HV_BIG_LOCK"); /* debugging: one CPU in guest code at a time */
+    if (windows) {
+        uint64_t ram = (c->ram_mb ? c->ram_mb : 4096) << 20;
+        if (hv_winvirt_create(&winboard, &m, cpus, ncpus, ram) != 0)
+            return fail(err, errlen, "Cannot build the Windows machine (not enough memory for the guest's RAM?).");
+        if (hv_winvirt_load_firmware(&winboard, c->firmware) != 0)
+            return fail(err, errlen, "Cannot read the UEFI firmware (missing, empty or over 64 MB).");
+        if (hv_winvirt_install_dtb(&winboard) != 0) return fail(err, errlen, "Cannot write the device tree.");
+        hv_winvirt_reset_cpu(&winboard);
+        windows_mode = 1;
+        pause_state = 0;
+        atomic_store(&input_stopping, 0);
+        return 0;
+    }
     HvCfgParams cfg = {.nr_cpus = (uint32_t)ncpus, .ecid = c->ecid, .seed = c->seed, .mac_en0 = {0x02, 0x48, 0x56, 0x4d, 0x00, 0x01}};
     if (c->installer) cfg.run_installer1 = cfg.run_installer2 = 1;
     if (getenv("HV_RUN_INSTALLER")) { /* experiment: "a,b" for the two installer words */
@@ -316,9 +332,14 @@ void hv_vm_destroy(void) {
     hv_net_detach();
     net_on = 0;
     hv_audio_detach();
-    hv_vmapple_destroy(&board);
-    hv_disk_close(&disk);
-    hv_disk_close(&aux);
+    if (windows_mode) {
+        hv_winvirt_destroy(&winboard);
+        windows_mode = 0;
+    } else {
+        hv_vmapple_destroy(&board);
+        hv_disk_close(&disk);
+        hv_disk_close(&aux);
+    }
     hv_machine_free(&m);
     memset(cpus, 0, sizeof cpus);
     ncpus = 0;
