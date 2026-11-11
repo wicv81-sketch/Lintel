@@ -17,6 +17,10 @@ name: Build Henge IPA
 on:
   workflow_dispatch: {}
 
+# The release step below attaches the IPA to a GitHub Release (a plain, unzipped download).
+permissions:
+  contents: write
+
 env:
   HUSK: ${{ github.workspace }}/Husk
   # The Makefile takes its slirp headers from IOS_DEPS, not HUSK:
@@ -133,3 +137,17 @@ jobs:
           name: Henge-tipa-${{ github.sha }}
           path: /Users/runner/Desktop/Henge.tipa
           if-no-files-found: error
+
+      # Artifacts always download as a .zip. A Release attaches the files as they are, so a phone can
+      # download Henge.ipa / Henge.tipa directly from the repo's Releases page.
+      - name: Publish a pre-release with the IPA and TIPA
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "build-${{ github.run_number }}" \
+            /Users/runner/Desktop/Henge.ipa /Users/runner/Desktop/Henge.tipa \
+            --repo "${{ github.repository }}" \
+            --target "${{ github.sha }}" \
+            --prerelease \
+            --title "Build ${{ github.run_number }}" \
+            --notes "Unsigned Henge build from ${{ github.sha }}. Henge.ipa: SideStore/AltStore. Henge.tipa: TrollStore."
