@@ -11,7 +11,7 @@
      gone:  boot ROM transport (bdif), config region, AES, Apple's paravirtual GPU, the RTC select window,
             the avp-ctrr and avp-sealed registers, the virtio USB installer port, the GIC MSI frame.
      kept:  GICv3, PL011, PL031, PCIe (INTx only), xHCI, the timer, PSCI over HVC.
-     TODO:  ACPI tables for fw_cfg (fw_cfg itself is in fwcfg.c), a device tree at WINVIRT_MEM, NVMe, a framebuffer, HID keyboard/tablet. */
+     TODO:  (ACPI is in winvirt_acpi.c, fw_cfg in fwcfg.c), a device tree at WINVIRT_MEM, NVMe, a framebuffer, HID keyboard/tablet. */
 
 static uint64_t tick_locked(HvMachine *m, HvCpu *cpu) {
     HvWinvirt *b = m->tick_opaque;
@@ -53,6 +53,7 @@ int hv_winvirt_create(HvWinvirt *b, HvMachine *m, HvCpu *cpu, int ncpus, uint64_
                              WINVIRT_PCIE_MMIO_SIZE, 32 + WINVIRT_IRQ_PCIE);
     b->usb = hv_xhci_create(m, b->pcie);
     b->fwcfg = hv_fwcfg_create(m, WINVIRT_FWCFG, ram_size, b->ncpus);
+    if (b->fwcfg && hv_winvirt_install_acpi(b) != 0) return -1;
     if (!b->fwcfg || !b->gic || !b->uart || !b->rtc || !b->pcie || !b->usb) return -1;
 
     m->tick = tick;

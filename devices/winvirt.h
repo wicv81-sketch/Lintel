@@ -19,7 +19,7 @@
 #define WINVIRT_GIC_REDIST     0x080a0000ull
 #define WINVIRT_UART           0x09000000ull
 #define WINVIRT_RTC            0x09010000ull
-#define WINVIRT_FWCFG          0x09020000ull /* devices/fwcfg.c; the ACPI files it should serve are still TODO */
+#define WINVIRT_FWCFG          0x09020000ull /* devices/fwcfg.c; serves the ACPI tables from winvirt_acpi.c */
 #define WINVIRT_PCIE_MMIO      0x10000000ull
 #define WINVIRT_PCIE_MMIO_SIZE 0x2eff0000ull
 #define WINVIRT_PCIE_ECAM      0x3f000000ull
@@ -50,6 +50,8 @@ int hv_winvirt_create(HvWinvirt *b, HvMachine *m, HvCpu *cpus, int ncpus, uint64
 int hv_winvirt_load_firmware(HvWinvirt *b, const char *path);
 /* Writes the device tree the firmware reads at the start of RAM (winvirt_dtb.c). Call before the first CPU runs. */
 int hv_winvirt_install_dtb(HvWinvirt *b);
+/* Adds the ACPI tables and their linker/loader script to fw_cfg (winvirt_acpi.c); hv_winvirt_create calls it. */
+int hv_winvirt_install_acpi(HvWinvirt *b);
 /* CPU reset: EL1, MMU off, interrupts masked, at the start of the flash; secondaries wait for PSCI CPU_ON. */
 void hv_winvirt_reset_cpu(HvWinvirt *b);
 void hv_winvirt_destroy(HvWinvirt *b);
