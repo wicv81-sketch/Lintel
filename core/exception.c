@@ -52,6 +52,13 @@ void hv_take_exception(HvCpu *cpu, int type, uint32_t esr, uint64_t far, int set
         st->elchg[k].from = ret, st->elchg[k].spsr = spsr, st->elchg[k].kind = (uint32_t)type, st->elchg[k].el = cpu->el;
         st->elchg[k].to = esr;
     }
+    if (type == HV_EXC_SYNC && cpu->m->log) { /* the first few guest faults: firmware bring-up needs to see them */
+        static int shown;
+        if (shown++ < 24)
+            fprintf(stderr, "guest exception: esr %08x far %llx pc %llx el%u x0 %llx x1 %llx sp %llx sctlr %llx\n", esr,
+                    (unsigned long long)far, (unsigned long long)ret, cpu->el, (unsigned long long)cpu->x[0],
+                    (unsigned long long)cpu->x[1], (unsigned long long)cpu->sp, (unsigned long long)cpu->sctlr_el1);
+    }
     if (cpu->m->trace || cpu->m->log >= 2)
         fprintf(stderr, "exception type %d esr %08x far %llx from pc %llx el%u\n", type, esr, (unsigned long long)far,
                 (unsigned long long)ret, cpu->el);

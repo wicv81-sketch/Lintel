@@ -21,7 +21,7 @@ static void update(HvPl011 *u) {
 static void default_output(void *opaque, uint8_t c) {
     (void)opaque;
     fputc(c, stdout);
-    if (c == '\n') fflush(stdout);
+    fflush(stdout);
 }
 
 static uint64_t pl011_read(void *opaque, uint64_t off, unsigned size) {
