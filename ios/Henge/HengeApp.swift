@@ -51,12 +51,6 @@ struct RootView: View {
                 LintelView()
                     .tabItem { Label("Windows", systemImage: "square.grid.2x2") }
                     .tag(Tab.windows)
-                HomeView(running: $running, tab: $tab)
-                    .tabItem { Label("Macs", systemImage: "macwindow") }
-                    .tag(Tab.macs)
-                InstallView()
-                    .tabItem { Label("Install", systemImage: "arrow.down.circle") }
-                    .tag(Tab.install)
                 SettingsView()
                     .tabItem { Label("Settings", systemImage: "gearshape") }
                     .tag(Tab.settings)
