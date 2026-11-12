@@ -36,18 +36,21 @@ struct HengeApp: App {
 }
 
 struct RootView: View {
-    enum Tab: Hashable { case macs, install, settings }
+    enum Tab: Hashable { case windows, macs, install, settings }
 
     @ObservedObject private var machines = Machines.shared
     @ObservedObject private var jit = JITCoordinator.shared
     @Environment(\.scenePhase) private var scenePhase
     @State private var running: VirtualMac?
-    @State private var tab = Tab.macs
+    @State private var tab = Tab.windows
     @AppStorage(DeskAppearance.key) private var appearance = DeskAppearance.system
 
     var body: some View {
         ZStack {
             TabView(selection: $tab) {
+                LintelView()
+                    .tabItem { Label("Windows", systemImage: "square.grid.2x2") }
+                    .tag(Tab.windows)
                 HomeView(running: $running, tab: $tab)
                     .tabItem { Label("Macs", systemImage: "macwindow") }
                     .tag(Tab.macs)
