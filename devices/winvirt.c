@@ -78,7 +78,7 @@ void hv_winvirt_reset_cpu(HvWinvirt *b) {
         hv_cpu_reset_index(c, b->m, (uint32_t)i);
         c->mpidr = 0x80000000u | (uint32_t)i; /* Aff0 = i: the MADT's GICC entries must say the same */
         c->pc = WINVIRT_FLASH;
-        c->x[0] = WINVIRT_RAM; /* the device tree, at the start of RAM: what QEMU hands a firmware (EDK2 reads x0) */
+        c->x[0] = WINVIRT_MEM; /* the device tree, at the start of RAM: what QEMU hands a firmware (EDK2 reads x0) */
         c->off = i != 0; /* secondaries wait for PSCI CPU_ON (HVC conduit: say so in the FADT) */
     }
 }
