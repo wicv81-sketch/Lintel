@@ -101,6 +101,17 @@ jobs:
         working-directory: Henge
         run: make ios-lib
 
+      # EDK2 AArch64 UEFI firmware for the experimental Windows board, bundled into the app.
+      # Fail-soft: if the download fails the app still builds, just without the firmware.
+      - name: Download EDK2 UEFI firmware
+        continue-on-error: true
+        run: |
+          mkdir -p Henge/ios/Henge/Resources
+          curl -fL --retry 3 -o Henge/ios/Henge/Resources/QEMU_EFI.fd \
+            https://github.com/retrage/edk2-nightly/raw/master/bin/RELEASEAARCH64_QEMU_EFI.fd \
+            && [ "$(stat -f%z Henge/ios/Henge/Resources/QEMU_EFI.fd)" -gt 1000000 ] \
+            || { echo "firmware download failed"; rm -f Henge/ios/Henge/Resources/QEMU_EFI.fd; }
+
       - name: Package Henge.ipa
         working-directory: Henge
         run: zsh ios/scripts/package_ipa.sh

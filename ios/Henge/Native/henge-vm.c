@@ -177,6 +177,21 @@ int henge_vm_continue(void) {
     return r;
 }
 
+/* Experimental: boots the Windows board (devices/winvirt.c) from a UEFI firmware image. */
+int henge_vm_boot_windows(const char *firmware, uint64_t ram_mb, int cpus, char *err, size_t errlen) {
+    if (begin_start(err, errlen)) return -1;
+    HengeDualMapping *jit = henge_ios_jit_get_mapping();
+    if (!jit || !jit->rw_addr) {
+        snprintf(err, errlen, "Henge has no JIT region. Turn on JIT first.");
+        return failed_start();
+    }
+    HvVmConfig c = {.firmware = firmware, .ram_mb = ram_mb, .ncpus = cpus, .log = 1,
+                    .jit_rx = jit->rx_addr, .jit_rw = jit->rw_addr, .jit_bytes = jit->size};
+    fprintf(stderr, "henge: booting the Windows board with %d CPUs, %llu MB RAM\n", cpus, (unsigned long long)ram_mb);
+    if (hv_vm_create(&c, err, errlen) != 0) return failed_start();
+    return started(err, errlen);
+}
+
 static int boot_or_resume(const char *rom, const char *disk, const char *aux, uint64_t ecid, uint64_t seed, uint64_t ram_mb,
                           int cpus, const char *resume, const char *ident, char *err, size_t errlen) {
     { extern void hv_prof_ios_start(void); hv_prof_ios_start(); }

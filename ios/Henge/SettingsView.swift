@@ -18,6 +18,7 @@ struct SettingsView: View {
     @AppStorage(DeskAppearance.key) private var appearance = DeskAppearance.system
     @AppStorage(InstantResume.key) private var instantResume = false
     @AppStorage(MacAppsFeature.key) private var macApps = false
+    @State private var winStatus = ""
 
     /// The second footer paragraph: how you click, given the selected input mode.
     private var inputDescription: String {
@@ -31,6 +32,20 @@ struct SettingsView: View {
             return "Tap then drag waits to see if you're holding or just clicking the volume button, but it unconditionally sends a single click regardless of whether you tap or hold, which results in shorter clicks at the cost of sending a click before holding."
         case .intercept:
             return "Activates the camera in order to intercept volume keys properly. This causes the volume keys to behave in the same way a mouse's buttons do, but it causes higher temperatures, as the camera is always on."
+        }
+    }
+
+    private func bootWindows() {
+        guard let fw = Bundle.main.path(forResource: "QEMU_EFI", ofType: "fd") else {
+            winStatus = "This build has no bundled firmware (QEMU_EFI.fd)."
+            return
+        }
+        winStatus = "Starting..."
+        DispatchQueue.global().async {
+            var err = [CChar](repeating: 0, count: 512)
+            let r = henge_vm_boot_windows(fw, 2048, 2, &err, err.count)
+            let msg = r == 0 ? "Running. Watch henge.log for the firmware's output." : "Failed: " + String(cString: err)
+            DispatchQueue.main.async { winStatus = msg }
         }
     }
 
@@ -142,6 +157,14 @@ struct SettingsView: View {
                     }
                     .pickerStyle(.segmented)
                     Text("System follows the \(Device.name)'s Light or Dark setting. Henge stays dark while a Mac is running.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
+                .listRowBackground(Desk.card)
+                Section("Windows (experimental)") {
+                    Button("Boot Windows board (UEFI test)") { bootWindows() }
+                    Button("Stop it", role: .destructive) { henge_vm_stop() }
+                    if !winStatus.isEmpty { Text(winStatus).font(.footnote).foregroundStyle(.secondary) }
+                    Text("Starts the new Windows board with the bundled UEFI firmware. There is no screen or disk yet: it only runs the firmware, whose serial output goes to henge.log (share it below). Turn on JIT first.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
                 .listRowBackground(Desk.card)
