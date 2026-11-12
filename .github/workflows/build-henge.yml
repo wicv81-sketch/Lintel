@@ -115,7 +115,10 @@ jobs:
           ls -d /Applications/Xcode*.app || true
           LOG="$GITHUB_WORKSPACE/Henge/ios/build/DerivedData.buildlog"
           if [ -f "$LOG" ]; then
-            grep -n -B25 -A3 "fatal error" "$LOG" | head -150
+            echo "=== lines mentioning an error or a failure (with context) ==="
+            grep -n -i -B8 -A3 "error\|failed\|fatal\|No such file\|not found" "$LOG" | head -120
+            echo "=== last 60 lines of the xcodebuild log ==="
+            tail -60 "$LOG"
           else
             echo "no build log at $LOG"
           fi
