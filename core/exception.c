@@ -59,6 +59,19 @@ void hv_take_exception(HvCpu *cpu, int type, uint32_t esr, uint64_t far, int set
                     (unsigned long long)far, (unsigned long long)ret, cpu->el, (unsigned long long)cpu->x[0],
                     (unsigned long long)cpu->x[1], (unsigned long long)cpu->sp, (unsigned long long)cpu->sctlr_el1);
     }
+    if (type == HV_EXC_SYNC && cpu->m->log) {
+        static int dumped;
+        if (dumped++ < 1) { /* the first fault: everything needed to work out why */
+            for (int i = 0; i < 31; i += 3)
+                fprintf(stderr, "  x%-2d %016llx x%-2d %016llx x%-2d %016llx\n", i, (unsigned long long)cpu->x[i], i + 1,
+                        (unsigned long long)cpu->x[i + 1], i + 2, i + 2 < 31 ? (unsigned long long)cpu->x[i + 2] : 0ull);
+            for (int i = 0; i < 16; i++) {
+                uint64_t w = 0, pa;
+                if (!hv_mmu_access(cpu, cpu->sp + 8 * (uint64_t)i, HV_ACC_READ, 1, &pa)) hv_phys_read(cpu->m, pa, &w, 8);
+                fprintf(stderr, "  [sp+%02x] %016llx\n", i * 8, (unsigned long long)w);
+            }
+        }
+    }
     if (cpu->m->trace || cpu->m->log >= 2)
         fprintf(stderr, "exception type %d esr %08x far %llx from pc %llx el%u\n", type, esr, (unsigned long long)far,
                 (unsigned long long)ret, cpu->el);

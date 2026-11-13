@@ -136,6 +136,8 @@ static void dma_run(HvFwCfg *f, uint64_t desc_pa) {
 static void fwcfg_write(void *opaque, uint64_t off, uint64_t v, unsigned size) {
     HvFwCfg *f = opaque;
     if (off == 0x08) { /* selector, big endian on the bus */
+        static int shown;
+        if (shown++ < 60) fprintf(stderr, "fw_cfg select %#x\n", size == 1 ? (unsigned)v : size == 2 ? be16((uint16_t)v) : be16((uint16_t)(v >> 16)));
         f->sel = size == 1 ? (uint16_t)v : size == 2 ? be16((uint16_t)v) : be16((uint16_t)(v >> 16));
         f->pos = 0;
     } else if (off == 0x10 && size == 8) { /* whole address in one access */
