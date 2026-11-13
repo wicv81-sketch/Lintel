@@ -74,9 +74,9 @@ static uint8_t next_byte(HvFwCfg *f) {
 
 static uint64_t fwcfg_read(void *opaque, uint64_t off, unsigned size) {
     HvFwCfg *f = opaque;
-    if (off < 8) { /* data: the bytes in order, first byte most significant */
+    if (off < 8) { /* data: a little-endian guest load sees the bytes in memory order, first byte least significant */
         uint64_t v = 0;
-        for (unsigned i = 0; i < size && i < 8; i++) v = (v << 8) | next_byte(f);
+        for (unsigned i = 0; i < size && i < 8; i++) v |= (uint64_t)next_byte(f) << (8 * i);
         return v;
     }
     if (off >= 0x10 && off < 0x18) { /* DMA register reads back the signature "QEMU CFG" */
