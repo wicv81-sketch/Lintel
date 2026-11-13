@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "ramfb.h"
 
 #include <stdlib.h>
@@ -16,6 +17,7 @@ static void ramfb_write(void *opaque, const uint8_t *d, uint32_t size) {
     r->height = rd32(d + 20);
     r->stride = rd32(d + 24);
     r->addr = addr;
+    fprintf(stderr, "ramfb: guest set %ux%u fourcc %#x stride %u at %#llx\n", r->width, r->height, r->fourcc, r->stride, (unsigned long long)addr);
 }
 
 HvRamfb *hv_ramfb_create(HvMachine *m, HvFwCfg *f) {

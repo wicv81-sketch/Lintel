@@ -67,6 +67,19 @@ int hv_vm_ncpus(void) { return ncpus; }
 /* arm64 boot_args: {u16 Revision, u16 Version, u64 virtBase, physBase, memSize,
    topOfKernelData, Video {baseAddr, display, rowBytes, width, height, depth}, ...}.
    Found by scanning page starts for one whose physBase is the RAM base. */
+static void *win_heartbeat(void *arg) {
+    (void)arg;
+    for (int t = 1; t <= 60 && windows_mode; t++) { /* bring-up: where is the guest, every 4 s for 4 minutes */
+        sleep(4);
+        for (int i = 0; i < ncpus; i++)
+            fprintf(stderr, "[hb %ds] cpu%d pc %llx el%u halted %d off %d | exc %llu irq %llu wfi %llu blocks %llu\n", t * 4, i,
+                    (unsigned long long)cpus[i].pc, cpus[i].el, (int)atomic_load(&cpus[i].halted), (int)cpus[i].off,
+                    (unsigned long long)m.stats.exceptions, (unsigned long long)m.stats.interrupts, (unsigned long long)m.stats.wfi,
+                    (unsigned long long)m.stats.why[0]);
+    }
+    return NULL;
+}
+
 int hv_vm_boot_display(HvBootDisplay *d) {
     if (windows_mode) { /* the Windows board's ramfb */
         const uint8_t *px;
@@ -289,6 +302,8 @@ int hv_vm_create(const HvVmConfig *c, char *err, size_t errlen) {
         if (hv_winvirt_install_dtb(&winboard) != 0) return fail(err, errlen, "Cannot write the device tree.");
         hv_winvirt_reset_cpu(&winboard);
         windows_mode = 1;
+        { pthread_t hb; pthread_attr_t at; pthread_attr_init(&at); pthread_attr_setdetachstate(&at, PTHREAD_CREATE_DETACHED);
+          pthread_create(&hb, &at, win_heartbeat, NULL); }
         pause_state = 0;
         atomic_store(&input_stopping, 0);
         return 0;
