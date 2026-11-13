@@ -114,7 +114,10 @@ jobs:
 
       - name: Package Henge.ipa
         working-directory: Henge
-        run: zsh ios/scripts/package_ipa.sh
+        run: |
+          # hdiutil (the Mac sample disk image) fails now and then on hosted runners: retry.
+          for i in 1 2 3; do zsh ios/scripts/package_ipa.sh && exit 0; echo "package attempt $i failed"; sleep 20; done
+          exit 1
 
       # package_ipa.sh hides the full xcodebuild log. On failure, show which Xcode/SDK
       # was used and the lines around each fatal error ("In file included from ...").
@@ -143,7 +146,9 @@ jobs:
 
       - name: Package Henge.tipa
         working-directory: Henge
-        run: zsh ios/scripts/package_ipa.sh --trollstore
+        run: |
+          for i in 1 2 3; do zsh ios/scripts/package_ipa.sh --trollstore && exit 0; sleep 20; done
+          exit 1
 
       - name: Upload Henge.tipa
         uses: actions/upload-artifact@v4
