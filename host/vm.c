@@ -68,6 +68,13 @@ int hv_vm_ncpus(void) { return ncpus; }
    topOfKernelData, Video {baseAddr, display, rowBytes, width, height, depth}, ...}.
    Found by scanning page starts for one whose physBase is the RAM base. */
 int hv_vm_boot_display(HvBootDisplay *d) {
+    if (windows_mode) { /* the Windows board's ramfb */
+        const uint8_t *px;
+        uint32_t w, h, stride;
+        if (hv_ramfb_frame(winboard.ramfb, &px, &w, &h, &stride) != 0) return -1;
+        d->pixels = (uint8_t *)px, d->width = w, d->height = h, d->stride = stride;
+        return 0;
+    }
     /* What the guest's GPU has drawn, once it has drawn anything. */
     HvPvgLite *pvg = atomic_load_explicit(&display_pvg, memory_order_acquire);
     if (!pvg) return -1;

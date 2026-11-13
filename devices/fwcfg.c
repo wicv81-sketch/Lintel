@@ -109,7 +109,18 @@ static void dma_run(HvFwCfg *f, uint64_t desc_pa) {
         dst = hv_ram_lookup(f->m, addr);
         if (!dst || addr + length > dst->pa + dst->size) err = DMA_ERROR;
     }
-    if (!err && (control & DMA_WRITE)) err = DMA_ERROR; /* nothing here is writable */
+    HvFwCfgFile *wf = NULL;
+    if (!err && (control & DMA_WRITE)) {
+        if (f->sel >= HV_FWCFG_FILE_FIRST && f->sel < HV_FWCFG_FILE_FIRST + f->nfiles)
+            wf = &f->files[f->sel - HV_FWCFG_FILE_FIRST];
+        HvRam *src = hv_ram_lookup(f->m, addr);
+        if (!wf || !wf->on_write || !src || addr + length > src->pa + src->size || f->pos + length > wf->size) err = DMA_ERROR;
+        else {
+            memcpy(wf->data + f->pos, src->host + (addr - src->pa), length);
+            f->pos += length;
+            wf->on_write(wf->opaque, wf->data, wf->size);
+        }
+    }
     if (!err) {
         if (control & DMA_READ)
             for (uint32_t i = 0; i < length; i++) dst->host[addr - dst->pa + i] = next_byte(f);
@@ -135,6 +146,18 @@ static void fwcfg_write(void *opaque, uint64_t off, uint64_t v, unsigned size) {
         f->dma_addr |= be32((uint32_t)v);
         dma_run(f, f->dma_addr);
     }
+}
+
+int hv_fwcfg_add_writable(HvFwCfg *f, const char *name, uint32_t size, void (*on_write)(void *, const uint8_t *, uint32_t),
+                          void *opaque) {
+    uint8_t *zero = calloc(1, size ? size : 1);
+    if (!zero) return -1;
+    int rc = hv_fwcfg_add_file(f, name, zero, size);
+    free(zero);
+    if (rc) return rc;
+    f->files[f->nfiles - 1].on_write = on_write;
+    f->files[f->nfiles - 1].opaque = opaque;
+    return 0;
 }
 
 int hv_fwcfg_add_file(HvFwCfg *f, const char *name, const void *data, uint32_t size) {

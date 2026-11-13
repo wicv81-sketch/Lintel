@@ -54,6 +54,7 @@ int hv_winvirt_create(HvWinvirt *b, HvMachine *m, HvCpu *cpu, int ncpus, uint64_
     b->usb = hv_xhci_create(m, b->pcie);
     b->fwcfg = hv_fwcfg_create(m, WINVIRT_FWCFG, ram_size, b->ncpus);
     if (b->fwcfg && hv_winvirt_install_acpi(b) != 0) return -1;
+    if (b->fwcfg) b->ramfb = hv_ramfb_create(m, b->fwcfg);
     if (!b->fwcfg || !b->gic || !b->uart || !b->rtc || !b->pcie || !b->usb) return -1;
 
     m->tick = tick;
@@ -87,6 +88,7 @@ void hv_winvirt_destroy(HvWinvirt *b) {
     if (b->usb) { pthread_mutex_destroy(&b->usb->mu); free(b->usb); }
     if (b->gic) { pthread_mutex_destroy(&b->gic->mu); free(b->gic); }
     hv_fwcfg_destroy(b->fwcfg);
+    free(b->ramfb);
     free(b->pcie);
     free(b->uart);
     free(b->rtc);

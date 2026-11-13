@@ -18,6 +18,8 @@ typedef struct HvFwCfgFile {
     char name[56];
     uint8_t *data; /* owned: copied in by hv_fwcfg_add_file */
     uint32_t size;
+    void (*on_write)(void *opaque, const uint8_t *data, uint32_t size); /* set: the guest may DMA-write the file */
+    void *opaque;
 } HvFwCfgFile;
 
 typedef struct HvFwCfg {
@@ -36,6 +38,9 @@ typedef struct HvFwCfg {
 HvFwCfg *hv_fwcfg_create(HvMachine *m, uint64_t pa, uint64_t ram_size, int ncpus);
 /* Adds a named file (name at most 55 characters), copying size bytes. Returns 0, or -1 if full or too long. */
 int hv_fwcfg_add_file(HvFwCfg *f, const char *name, const void *data, uint32_t size);
+/* A file the guest can write by DMA (QEMU's etc/ramfb works this way); on_write gets the whole file after each write. */
+int hv_fwcfg_add_writable(HvFwCfg *f, const char *name, uint32_t size, void (*on_write)(void *, const uint8_t *, uint32_t),
+                          void *opaque);
 void hv_fwcfg_destroy(HvFwCfg *f);
 
 #endif

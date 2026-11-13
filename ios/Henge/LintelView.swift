@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreGraphics
 
 /// The Windows board's home screen: the machine's size (automatic or by hand), a Start button, and the log.
 struct LintelView: View {
@@ -8,6 +9,7 @@ struct LintelView: View {
     @ObservedObject private var jit = JITCoordinator.shared
     @State private var status = "Stopped"
     @State private var busy = false
+    @State private var frame: CGImage?
 
     private static let cores = max(ProcessInfo.processInfo.activeProcessorCount, 1)
     private static let deviceGB = Double(ProcessInfo.processInfo.physicalMemory) / 1_073_741_824
@@ -24,6 +26,7 @@ struct LintelView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     hero
+                    screenCard
                     sizeCard
                     startCard
                     Text("Lintel is a fork of Henge by Leviidev (GPL-2.0-or-later).")
@@ -50,6 +53,25 @@ struct LintelView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16).background(Desk.card, in: RoundedRectangle(cornerRadius: 20))
+    }
+
+    private var screenCard: some View {
+        ZStack {
+            Color.black
+            if let frame {
+                Image(decorative: frame, scale: 1).resizable().interpolation(.medium).aspectRatio(contentMode: .fit)
+            } else {
+                Text("No picture yet").font(.footnote).foregroundStyle(.gray)
+            }
+        }
+        .aspectRatio(16.0 / 10.0, contentMode: .fit)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .task {
+            while !Task.isCancelled {
+                if status.hasPrefix("Running") { frame = BootDisplay.snapshot() ?? frame }
+                try? await Task.sleep(nanoseconds: 150_000_000)
+            }
+        }
     }
 
     private var sizeCard: some View {

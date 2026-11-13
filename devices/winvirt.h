@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "fwcfg.h"
+#include "ramfb.h"
 #include "gicv3.h"
 #include "pcie.h"
 #include "pl011.h"
@@ -40,6 +41,7 @@ typedef struct HvWinvirt {
     HvPl031 *rtc;
     HvPcie *pcie;
     HvFwCfg *fwcfg;
+    HvRamfb *ramfb;
     HvXhci *usb;   /* TODO: its HID devices are Apple's trackpad; Windows needs a plain keyboard and tablet */
     uint8_t *flash, *ram;
     uint64_t ram_size;
