@@ -69,13 +69,23 @@ int hv_vm_ncpus(void) { return ncpus; }
    Found by scanning page starts for one whose physBase is the RAM base. */
 static void *win_heartbeat(void *arg) {
     (void)arg;
-    for (int t = 1; t <= 60 && windows_mode; t++) { /* bring-up: where is the guest, every 4 s for 4 minutes */
+    for (int t = 1; t <= 120 && windows_mode; t++) { /* bring-up: where is the guest, and is it drawing anything */
         sleep(4);
         for (int i = 0; i < ncpus; i++)
             fprintf(stderr, "[hb %ds] cpu%d pc %llx el%u halted %d off %d | exc %llu irq %llu wfi %llu blocks %llu\n", t * 4, i,
                     (unsigned long long)cpus[i].pc, cpus[i].el, (int)atomic_load(&cpus[i].halted), (int)cpus[i].off,
                     (unsigned long long)m.stats.exceptions, (unsigned long long)m.stats.interrupts, (unsigned long long)m.stats.wfi,
                     (unsigned long long)m.stats.why[0]);
+        const uint8_t *px; uint32_t w, h, stride;
+        if (hv_ramfb_frame(winboard.ramfb, &px, &w, &h, &stride) == 0) {
+            uint64_t sum = 0, nonzero = 0;
+            size_t n = (size_t)stride * h;
+            for (size_t i = 0; i < n; i++) { sum += px[i]; if (px[i]) nonzero++; }
+            fprintf(stderr, "[hb %ds] ramfb %ux%u sum %llu nonzero-bytes %llu/%zu\n", t * 4, w, h,
+                    (unsigned long long)sum, (unsigned long long)nonzero, n);
+        } else {
+            fprintf(stderr, "[hb %ds] ramfb: no frame yet\n", t * 4);
+        }
     }
     return NULL;
 }
