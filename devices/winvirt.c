@@ -31,7 +31,7 @@ static uint64_t tick(HvMachine *m, HvCpu *cpu) {
     return deadline;
 }
 
-int hv_winvirt_create(HvWinvirt *b, HvMachine *m, HvCpu *cpu, int ncpus, uint64_t ram_size) {
+int hv_winvirt_create(HvWinvirt *b, HvMachine *m, HvCpu *cpu, int ncpus, uint64_t ram_size, const char *disk_path) {
     memset(b, 0, sizeof *b);
     b->m = m;
     b->cpu = cpu;
