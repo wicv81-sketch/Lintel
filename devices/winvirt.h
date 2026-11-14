@@ -10,6 +10,8 @@
 #include "pl011.h"
 #include "pl031.h"
 #include "xhci.h"
+#include "virtio_blk.h"
+#include "disk.h"
 
 /* A virtual ARM64 PC for Windows: QEMU's `virt` memory map (hw/arm/virt.c) in place of vmapple's.
    Drop this file and winvirt.c into devices/ next to vmapple.c. UNTESTED: written from reading
@@ -43,11 +45,13 @@ typedef struct HvWinvirt {
     HvFwCfg *fwcfg;
     HvRamfb *ramfb;
     HvXhci *usb;   /* TODO: its HID devices are Apple's trackpad; Windows needs a plain keyboard and tablet */
+    HvDisk disk;            /* the attached ISO/disk image, if any (hv_disk_open'd by hv_winvirt_create) */
+    HvVirtioBlk *blk;       /* virtio-blk on the PCIe bus exposing it; NULL if no disk was given */
     uint8_t *flash, *ram;
     uint64_t ram_size;
 } HvWinvirt;
 
-int hv_winvirt_create(HvWinvirt *b, HvMachine *m, HvCpu *cpus, int ncpus, uint64_t ram_size);
+int hv_winvirt_create(HvWinvirt *b, HvMachine *m, HvCpu *cpus, int ncpus, uint64_t ram_size, const char *disk_path);
 /* Copies the UEFI firmware image into the flash region. */
 int hv_winvirt_load_firmware(HvWinvirt *b, const char *path);
 /* Writes the device tree the firmware reads at the start of RAM (winvirt_dtb.c). Call before the first CPU runs. */

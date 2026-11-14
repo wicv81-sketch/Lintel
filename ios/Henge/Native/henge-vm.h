@@ -10,7 +10,7 @@
 int henge_vm_boot(const char *rom, const char *disk, const char *aux, uint64_t ecid, uint64_t seed, uint64_t ram_mb,
                   int cpus, char *err, size_t errlen);
 /* Experimental Windows board: boots a UEFI firmware image (no disk yet). 0, or -1 with a reason in err. */
-int henge_vm_boot_windows(const char *firmware, uint64_t ram_mb, int cpus, char *err, size_t errlen);
+int henge_vm_boot_windows(const char *firmware, const char *disk, uint64_t ram_mb, int cpus, char *err, size_t errlen);
 /* Installs macOS from an IPSW onto a new machine (blank disk and auxiliary
    storage): boots the ROM in DFU mode and runs the restore over its USB port,
    as Virtualization.framework's installer does. workdir is scratch space.

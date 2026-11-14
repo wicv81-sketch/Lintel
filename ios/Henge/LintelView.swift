@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreGraphics
+import UniformTypeIdentifiers
 
 /// The Windows board's home screen: the machine's size (automatic or by hand), a Start button, and the log.
 struct LintelView: View {
@@ -10,6 +11,8 @@ struct LintelView: View {
     @State private var status = "Stopped"
     @State private var busy = false
     @State private var frame: CGImage?
+    @AppStorage("lintel.diskName") private var diskName = ""
+    @State private var showImporter = false
 
     private static let cores = max(ProcessInfo.processInfo.activeProcessorCount, 1)
     private static let deviceGB = Double(ProcessInfo.processInfo.physicalMemory) / 1_073_741_824
@@ -28,6 +31,7 @@ struct LintelView: View {
                     hero
                     screenCard
                     sizeCard
+                    diskCard
                     startCard
                     Text("Lintel is a fork of Henge by Leviidev (GPL-2.0-or-later).")
                         .font(.caption2).foregroundStyle(Desk.faint)
@@ -122,6 +126,40 @@ struct LintelView: View {
         .padding(16).background(Desk.card, in: RoundedRectangle(cornerRadius: 20))
     }
 
+    private var diskCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Disk").font(.headline)
+            if diskName.isEmpty {
+                Text("No ISO or disk image attached. Windows needs one to install from.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            } else {
+                Text(diskName).font(.footnote).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Button(diskName.isEmpty ? "Choose ISO or disk image..." : "Change...") { showImporter = true }
+                .buttonStyle(.bordered)
+        }
+        .padding(16).background(Desk.card, in: RoundedRectangle(cornerRadius: 20))
+        .fileImporter(isPresented: $showImporter, allowedContentTypes: [.item], allowsMultipleSelection: false) { result in
+            guard case .success(let urls) = result, let src = urls.first else { return }
+            let accessed = src.startAccessingSecurityScopedResource()
+            defer { if accessed { src.stopAccessingSecurityScopedResource() } }
+            let dst = Self.diskStorageDir.appendingPathComponent(src.lastPathComponent)
+            try? FileManager.default.removeItem(at: dst)
+            do {
+                try FileManager.default.copyItem(at: src, to: dst)
+                diskName = src.lastPathComponent
+            } catch {
+                status = "Failed to import the disk image: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    private static var diskStorageDir: URL {
+        let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("disks")
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+
     private static func fmt(_ g: Double) -> String { g == g.rounded() ? String(Int(g)) : String(format: "%.1f", g) }
 
     private func start() {
@@ -129,11 +167,17 @@ struct LintelView: View {
             status = "Failed: this build has no bundled firmware (QEMU_EFI.fd)."
             return
         }
+        let disk = diskName.isEmpty ? nil : Self.diskStorageDir.appendingPathComponent(diskName).path
         busy = true; status = "Starting \(cpus) cores, \(Self.fmt(ram)) GB..."
         let c = cpus, mb = UInt64(ram * 1024)
         DispatchQueue.global().async {
             var err = [CChar](repeating: 0, count: 512)
-            let r = henge_vm_boot_windows(fw, mb, Int32(c), &err, err.count)
+            let r: Int32
+            if let disk {
+                r = disk.withCString { d in henge_vm_boot_windows(fw, d, mb, Int32(c), &err, err.count) }
+            } else {
+                r = henge_vm_boot_windows(fw, nil, mb, Int32(c), &err, err.count)
+            }
             DispatchQueue.main.async {
                 busy = false
                 status = r == 0 ? "Running. Watch henge.log for the firmware's output." : "Failed: " + String(cString: err)

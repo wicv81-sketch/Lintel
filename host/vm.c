@@ -305,7 +305,7 @@ int hv_vm_create(const HvVmConfig *c, char *err, size_t errlen) {
     m.big_lock_on = ncpus > 1 && getenv("HV_BIG_LOCK"); /* debugging: one CPU in guest code at a time */
     if (windows) {
         uint64_t ram = (c->ram_mb ? c->ram_mb : 4096) << 20;
-        if (hv_winvirt_create(&winboard, &m, cpus, ncpus, ram) != 0)
+        if (hv_winvirt_create(&winboard, &m, cpus, ncpus, ram, c->disk) != 0)
             return fail(err, errlen, "Cannot build the Windows machine (not enough memory for the guest's RAM?).");
         if (hv_winvirt_load_firmware(&winboard, c->firmware) != 0)
             return fail(err, errlen, "Cannot read the UEFI firmware (missing, empty or over 64 MB).");

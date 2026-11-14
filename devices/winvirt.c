@@ -52,6 +52,8 @@ int hv_winvirt_create(HvWinvirt *b, HvMachine *m, HvCpu *cpu, int ncpus, uint64_
     b->pcie = hv_pcie_create(m, b->gic, WINVIRT_PCIE_ECAM, WINVIRT_PCIE_ECAM_SIZE, WINVIRT_PCIE_MMIO,
                              WINVIRT_PCIE_MMIO_SIZE, 32 + WINVIRT_IRQ_PCIE);
     b->usb = hv_xhci_create(m, b->pcie);
+    if (disk_path && hv_disk_open(&b->disk, disk_path, 0, 1) == 0)
+        b->blk = hv_virtio_blk_create(m, b->pcie, &b->disk, HV_VBLK_PLAIN);
     b->fwcfg = hv_fwcfg_create(m, WINVIRT_FWCFG, ram_size, b->ncpus);
     if (b->fwcfg && hv_winvirt_install_acpi(b) != 0) return -1;
     if (b->fwcfg) b->ramfb = hv_ramfb_create(m, b->fwcfg);
@@ -89,6 +91,8 @@ void hv_winvirt_destroy(HvWinvirt *b) {
     if (b->gic) { pthread_mutex_destroy(&b->gic->mu); free(b->gic); }
     hv_fwcfg_destroy(b->fwcfg);
     free(b->ramfb);
+    if (b->blk) hv_virtio_blk_destroy(b->blk);
+    if (b->blk) hv_disk_close(&b->disk);
     free(b->pcie);
     free(b->uart);
     free(b->rtc);
