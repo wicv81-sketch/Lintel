@@ -152,6 +152,22 @@ static size_t build(const HvWinvirt *b, uint8_t *out, size_t cap) {
     /* One 32-bit memory window, identity mapped (space code 0x02000000). */
     CELLS(&f, "ranges", 0x02000000, 0, LO(WINVIRT_PCIE_MMIO), 0, LO(WINVIRT_PCIE_MMIO), 0,
           (uint32_t)WINVIRT_PCIE_MMIO_SIZE);
+    /* Legacy INTx routing: every device here only ever asserts INTA (one function each), swizzled
+       the same way as the ACPI _PRT in winvirt_acpi.c (slot s -> SPI WINVIRT_IRQ_PCIE + ((1+s) & 3)).
+       Without this, EDK2's FdtPciHostBridgeLib may not treat the host bridge as fully described and
+       skip resource (BAR) assignment entirely -- worth trying first if PCI enumeration never starts. */
+    CELLS(&f, "interrupt-map-mask", 0xf800, 0, 0, 0x7);
+    {
+        uint32_t m[32 * 8];
+        for (uint32_t s = 0; s < 32; s++) {
+            uint32_t *e = m + s * 8;
+            e[0] = s << 11, e[1] = 0, e[2] = 0;       /* child unit address: device s, function 0 */
+            e[3] = 1;                                 /* child interrupt specifier: INTA */
+            e[4] = GIC;                                /* interrupt-parent */
+            e[5] = 0, e[6] = WINVIRT_IRQ_PCIE + ((1 + s) & 3), e[7] = 4; /* SPI, level-high */
+        }
+        prop_cells(&f, "interrupt-map", m, 32 * 8);
+    }
     end(&f);
     end(&f); /* root */
     put32(&f, 9);
