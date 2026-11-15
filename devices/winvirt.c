@@ -2,6 +2,7 @@
 #include "sysreg.h"
 #include "timer.h"
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,8 +53,15 @@ int hv_winvirt_create(HvWinvirt *b, HvMachine *m, HvCpu *cpu, int ncpus, uint64_
     b->pcie = hv_pcie_create(m, b->gic, WINVIRT_PCIE_ECAM, WINVIRT_PCIE_ECAM_SIZE, WINVIRT_PCIE_MMIO,
                              WINVIRT_PCIE_MMIO_SIZE, 32 + WINVIRT_IRQ_PCIE);
     b->usb = hv_xhci_create(m, b->pcie);
-    if (disk_path && hv_disk_open(&b->disk, disk_path, 0, 1) == 0)
-        b->blk = hv_virtio_blk_create(m, b->pcie, &b->disk, HV_VBLK_PLAIN);
+    if (disk_path) {
+        if (hv_disk_open(&b->disk, disk_path, 0, 1) == 0) {
+            fprintf(stderr, "winvirt: disk opened, %llu MB\n", (unsigned long long)(b->disk.size >> 20));
+            b->blk = hv_virtio_blk_create(m, b->pcie, &b->disk, HV_VBLK_PLAIN);
+            fprintf(stderr, "winvirt: virtio-blk %s\n", b->blk ? "attached to the PCIe bus" : "FAILED to attach");
+        } else {
+            fprintf(stderr, "winvirt: could not open the disk image at %s (errno %d: %s)\n", disk_path, errno, strerror(errno));
+        }
+    }
     b->fwcfg = hv_fwcfg_create(m, WINVIRT_FWCFG, ram_size, b->ncpus);
     if (b->fwcfg && hv_winvirt_install_acpi(b) != 0) return -1;
     if (b->fwcfg) b->ramfb = hv_ramfb_create(m, b->fwcfg);
