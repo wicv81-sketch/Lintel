@@ -86,6 +86,11 @@ static void ecam_write(void *opaque, uint64_t off, uint64_t v, unsigned size) {
     HvPciDev *d = bus == 0 && fn == 0 ? p->dev[slot] : NULL;
     if (!d) return;
     uint16_t old_cmd = get16(d->config + PCI_COMMAND);
+    static int enum_log = 100; /* temporary, unconditional: first 100 writes to any BAR or the command reg, any slot */
+    if (enum_log > 0 && (reg == PCI_COMMAND || (reg >= 0x10 && reg < 0x28))) {
+        enum_log--;
+        fprintf(stderr, "pci %u: write %03x (%u) = %llx\n", slot, reg, size, (unsigned long long)v);
+    }
     for (unsigned i = 0; i < size && reg + i < 256; i++) {
         uint8_t w = d->wmask[reg + i], b = (uint8_t)(v >> (i * 8));
         d->config[reg + i] = (uint8_t)((d->config[reg + i] & ~w) | (b & w));
@@ -119,6 +124,8 @@ static uint64_t window_read(void *opaque, uint64_t off, unsigned size) {
     int bar;
     uint64_t boff;
     HvPciDev *d = bar_lookup(p, p->mmio_base + off, &bar, &boff);
+    static int miss_log = 20; /* temporary, unconditional: a BAR MMIO read that hit no device at all */
+    if (!d && miss_log > 0) { miss_log--; fprintf(stderr, "pci window: read at +%#llx hit no BAR\n", (unsigned long long)off); }
     if (!d || !d->bar_read) return ~0ull;
     return d->bar_read(d, bar, boff, size);
 }
@@ -128,6 +135,8 @@ static void window_write(void *opaque, uint64_t off, uint64_t v, unsigned size) 
     int bar;
     uint64_t boff;
     HvPciDev *d = bar_lookup(p, p->mmio_base + off, &bar, &boff);
+    static int miss_log = 20;
+    if (!d && miss_log > 0) { miss_log--; fprintf(stderr, "pci window: write at +%#llx hit no BAR\n", (unsigned long long)off); }
     if (d && d->bar_write) d->bar_write(d, bar, boff, v, size);
 }
 

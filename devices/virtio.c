@@ -84,10 +84,13 @@ static void common_write(HvVirtio *v, uint64_t off, uint64_t val, unsigned size)
             v->driver_features = (v->driver_features & ~mask) | (((uint64_t)(uint32_t)val << (32 * v->gfsel)) & v->features);
         }
         break;
-    case 0x14:
+    case 0x14: {
+        static int log = 40; /* temporary, unconditional: the driver's status-register writes, any virtio device */
+        if (log > 0) { log--; fprintf(stderr, "virtio %04x: status <- %#llx\n", v->pci.config[2] | v->pci.config[3] << 8, (unsigned long long)val); }
         if ((uint8_t)val == 0) reset(v);
         else v->status = (uint8_t)val;
         break;
+    }
     case 0x16: v->qsel = (uint16_t)val; break;
     case 0x18:
         if (q && val && val <= HV_VIRTQ_MAX_SIZE && !(val & (val - 1))) q->size = (uint16_t)val;
@@ -107,6 +110,8 @@ static void common_write(HvVirtio *v, uint64_t off, uint64_t val, unsigned size)
 
 static uint64_t bar_read(HvPciDev *d, int bar, uint64_t off, unsigned size) {
     HvVirtio *v = d->opaque;
+    static int log = 20; /* temporary, unconditional: proves the BAR MMIO window is reached at all */
+    if (log > 0) { log--; fprintf(stderr, "virtio %04x: bar_read bar %d +%#llx (%u)\n", v->pci.config[2] | v->pci.config[3] << 8, bar, (unsigned long long)off, size); }
     if (bar != BAR) return ~0ull;
     if (off < ISR) return common_read(v, off);
     if (off < DEVICE) { /* ISR: reading clears it and drops the line */
